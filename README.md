@@ -1,9 +1,8 @@
 # n8n-nodes-memu
 
-[![npm version](https://badge.fury.io/js/n8n-nodes-memu.svg)](https://badge.fury.io/js/n8n-nodes-memu)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-This is an n8n community node package that integrates [MemU's](https://memu.so) agentic memory capabilities into n8n workflows. MemU is an agentic memory framework for LLM and AI agent backends that processes multimodal inputs (conversations, documents, images, videos, audio) into structured, retrievable memory.
+This is an n8n community node package that integrates [MemU's](https://memu.so) agentic memory capabilities into n8n workflows. MemU is an agentic memory framework that processes multimodal inputs (conversations, documents, images, videos, audio) into structured, retrievable memory for your AI agents.
 
 ## Table of Contents
 
@@ -12,368 +11,106 @@ This is an n8n community node package that integrates [MemU's](https://memu.so) 
 - [Credentials](#credentials)
 - [Configuration Examples](#configuration-examples)
 - [Workflow Integration Patterns](#workflow-integration-patterns)
-- [Troubleshooting](#troubleshooting)
-- [FAQ](#faq)
 - [Resources](#resources)
 - [License](#license)
 
 ## Installation
 
-Follow the [installation guide](https://docs.n8n.io/integrations/community-nodes/installation/) in the n8n community nodes documentation.
+Since this package is built for n8n, you can install it for local development or testing directly from GitHub.
 
-### Community Nodes (Recommended)
-
-1. Go to **Settings > Community Nodes**
-2. Select **Install**
-3. Enter `n8n-nodes-memu` in **Enter npm package name**
-4. Agree to the [risks](https://docs.n8n.io/integrations/community-nodes/risks/) of using community nodes
-5. Select **Install**
-
-After installing, the nodes are available in the node panel under the "MemU" category.
-
-### Manual Installation
-
-For self-hosted n8n instances:
+### 1. Install n8n and the MemU node package
+Use `pnpm` (or `npm`) to install n8n and this package into your local project:
 
 ```bash
-cd ~/.n8n/nodes
-npm install n8n-nodes-memu
+pnpm add n8n
+pnpm add github:Vishesh-Paliwal/n8n-nodes-memu
 ```
 
-For Docker-based deployments, add to your Dockerfile:
+### 2. Configure n8n to load the custom node
+To run n8n and make it recognize the MemU nodes, you need to set the `N8N_CUSTOM_EXTENSIONS` environment variable. 
 
-```dockerfile
-RUN cd /usr/local/lib/node_modules/n8n && npm install n8n-nodes-memu
+Add a start script to your `package.json`:
+
+```json
+"scripts": {
+  "start": "N8N_CUSTOM_EXTENSIONS=./node_modules/n8n-nodes-memu npx n8n start"
+}
 ```
 
-Or use environment variable:
-
-```yaml
-# docker-compose.yml
-environment:
-  - N8N_CUSTOM_EXTENSIONS=/home/node/.n8n/nodes
-volumes:
-  - ./custom-nodes:/home/node/.n8n/nodes
+Then run:
+```bash
+pnpm start
 ```
 
 ## Nodes
 
-This package provides six nodes for comprehensive MemU integration:
+This package provides nodes to bridge the gap between your data and AI memory:
 
-### MemU Memorize
+### 🧠 MemU Memorize
+The core node for building long-term memory. It points at a resource (URL or local path) and extracts "Memory Items" (Knowledge, Profile, Behavior, etc.) automatically.
 
-Extract and store structured memory from multimodal inputs.
+*   **Modality**: Supports `conversation`, `document`, `image`, `video`, and `audio`.
+*   **User Scoping**: Crucial for multi-tenant agents. Attach a `user_id` so the memory remains private to that user.
 
-| Property | Type | Description |
-|----------|------|-------------|
-| Resource Source | Options | Choose between input data or manual URL |
-| Resource URL | String | URL or path to the resource |
-| Modality | Options | Type of content: conversation, document, image, video, audio |
-| User Scoping | Collection | Optional user/agent context for scoped storage |
+### 🔍 MemU Retrieve
+The bridge for AI responses. It queries the stored memory to find relevant context.
 
-**Output**: Resource metadata, extracted memory items, and updated categories.
+*   **RAG Method**: Fast vector-based similarity search.
+*   **LLM Method**: Deep semantic reasoning to find relevant context that simple search might miss.
 
-### MemU Retrieve
-
-Query and retrieve relevant memories using RAG or LLM methods.
-
-| Property | Type | Description |
-|----------|------|-------------|
-| Query Source | Options | Choose between input data or manual query |
-| Query Text | String | Search query for memory retrieval |
-| Retrieval Method | Options | RAG (fast) or LLM (deep semantic) |
-| Context Messages | Collection | Previous conversation context |
-| Filters | Collection | User/agent scope filters |
-
-**Output**: Relevant categories, memory items, and resources with similarity scores.
-
-### MemU List Items
-
-List and browse stored memory items and categories.
-
-| Property | Type | Description |
-|----------|------|-------------|
-| List Type | Options | Memory items or categories |
-| User Scope Filters | Collection | Filter by user/agent ID |
-| Limit | Number | Maximum items to return |
-
-### MemU Create Item
-
-Create new memory items manually.
-
-| Property | Type | Description |
-|----------|------|-------------|
-| Memory Type | Options | behavior, event, knowledge, profile, skill |
-| Content | String | Memory content/summary |
-| Categories | Array | Category assignments |
-| User Scoping | Collection | User/agent context |
-
-### MemU Update Item
-
-Update existing memory items by ID.
-
-| Property | Type | Description |
-|----------|------|-------------|
-| Item ID Source | Options | From input or manual entry |
-| Item ID | String | Memory item ID to update |
-| Update Fields | Collection | Fields to update (type, content, categories) |
-
-### MemU Delete Item
-
-Delete memory items by ID.
-
-| Property | Type | Description |
-|----------|------|-------------|
-| Item ID Source | Options | From input or manual entry |
-| Item ID | String | Memory item ID to delete |
-| Confirm Delete | Boolean | Safety confirmation |
+### 📋 MemU List Categories
+Returns a list of all categories the agent has created. This is useful for dynamic routing or building dashboards to show what the agent "knows".
 
 ## Credentials
 
-### MemU Cloud API
+To use these nodes, you need a **MemU Cloud API** credential.
 
-For MemU Cloud service (https://memu.so):
-
-| Field | Description |
-|-------|-------------|
-| API Key | Your MemU Cloud API key (from dashboard) |
-| Base URL | API endpoint (default: https://api.memu.so) |
-
-### MemU Self-hosted API
-
-For self-hosted MemU instances:
-
-| Field | Description |
-|-------|-------------|
-| Base URL | Your MemU instance URL (e.g., http://localhost:8000) |
-| Authentication Method | API Key or None |
-| API Key | Optional API key if authentication is enabled |
+1.  **Base URL**: Use `https://api.memu.so` (default).
+2.  **API Key**: Your secret key from the MemU dashboard.
 
 ## Configuration Examples
 
-### Example 1: Basic Document Memorization
+### Use Case: Building a Research Assistant
+Instead of manually reading 10 PDFs, use the **Memorize** node to process them into your agent's brain.
 
+**Memorize Configuration:**
 ```json
 {
   "resourceSource": "manual",
-  "resourceUrl": "https://example.com/document.pdf",
+  "resourceUrl": "https://example.com/research-paper.pdf",
   "modality": "document",
   "userScoping": {
-    "user_id": "user-123",
-    "agent_id": "assistant-1"
+    "user_id": "researcher_01"
   }
 }
 ```
 
-### Example 2: Conversation Memory with Context
-
+**Retrieve Configuration:**
+When the researcher asks a question later, use the **Retrieve** node:
 ```json
 {
-  "querySource": "manual",
-  "queryText": "What are the user's preferences?",
-  "method": "llm",
-  "contextMessages": {
-    "messages": [
-      { "role": "user", "content": "I prefer dark mode" },
-      { "role": "assistant", "content": "I'll remember that preference" }
-    ]
-  },
-  "filters": {
-    "user_id": "user-123"
-  }
+  "queryText": "What were the main conclusions of the climate study?",
+  "method": "rag",
+  "filters": { "user_id": "researcher_01" }
 }
-```
-
-### Example 3: Batch Processing from Input
-
-```json
-{
-  "resourceSource": "input",
-  "resourceUrlField": "documentUrl",
-  "modality": "document"
-}
-```
-
-Input data:
-```json
-[
-  { "documentUrl": "https://example.com/doc1.pdf" },
-  { "documentUrl": "https://example.com/doc2.pdf" }
-]
 ```
 
 ## Workflow Integration Patterns
 
-### Pattern 1: Document Processing Pipeline
+### Auto-Updating Knowledge Base
+Connect a **Google Drive Trigger** to a **MemU Memorize** node. Every time you drop a new file in your drive, your n8n agent automatically "reads" it and updates its knowledge.
 
-```
-┌─────────────┐    ┌──────────────┐    ┌──────────────┐    ┌─────────────┐
-│ HTTP Request│───▶│MemU Memorize│───▶│MemU Retrieve │───▶│ AI Response │
-└─────────────┘    └──────────────┘    └──────────────┘    └─────────────┘
-```
-
-Use case: Fetch documents, extract memory, query for context, generate AI responses.
-
-### Pattern 2: Chatbot with Memory
-
-```
-┌─────────────┐    ┌──────────────┐    ┌─────────────┐    ┌──────────────┐
-│ Webhook     │───▶│MemU Retrieve │───▶│ OpenAI Chat │───▶│MemU Memorize│
-└─────────────┘    └──────────────┘    └─────────────┘    └──────────────┘
-```
-
-Use case: Receive user message, retrieve relevant memories, generate response, store conversation.
-
-### Pattern 3: Knowledge Base Sync
-
-```
-┌─────────────┐    ┌──────────────┐    ┌──────────────┐
-│ Schedule    │───▶│ HTTP Request │───▶│MemU Memorize│
-│ Trigger     │    │ (fetch docs) │    │ (batch)     │
-└─────────────┘    └──────────────┘    └──────────────┘
-```
-
-Use case: Periodically sync external knowledge sources into MemU memory.
-
-### Pattern 4: Memory Cleanup Workflow
-
-```
-┌─────────────┐    ┌───────────────┐    ┌───────────────┐
-│ Schedule    │───▶│MemU List Items│───▶│MemU Delete   │
-│ Trigger     │    │ (filter old)  │    │ Item (batch) │
-└─────────────┘    └───────────────┘    └───────────────┘
-```
-
-Use case: Automated cleanup of outdated memory items.
-
-### Pattern 5: Multi-Modal Processing
-
-```
-                    ┌──────────────┐
-                 ┌─▶│MemU Memorize│──┐
-┌─────────────┐  │  │ (document)  │  │  ┌──────────────┐
-│ Split Input │──┤  └──────────────┘  ├─▶│ Merge Results│
-└─────────────┘  │  ┌──────────────┐  │  └──────────────┘
-                 └─▶│MemU Memorize│──┘
-                    │ (image)     │
-                    └──────────────┘
-```
-
-Use case: Process different content types in parallel and merge results.
-
-## Troubleshooting
-
-### Connection Issues
-
-**Problem**: "Connection refused" or "ECONNREFUSED" error
-
-**Solutions**:
-1. Verify the MemU service is running and accessible
-2. Check the Base URL in credentials (include protocol: `http://` or `https://`)
-3. For self-hosted: ensure firewall allows connections on the MemU port
-4. For Docker: use host network or proper container networking
-
-**Problem**: "Authentication failed" error
-
-**Solutions**:
-1. Verify API key is correct and not expired
-2. Check API key has necessary permissions
-3. For self-hosted: ensure authentication method matches server configuration
-
-### Processing Issues
-
-**Problem**: "Invalid modality" error
-
-**Solution**: Ensure modality matches content type:
-- `conversation` - JSON conversation logs
-- `document` - PDF, TXT, DOCX files
-- `image` - PNG, JPG, WEBP images
-- `video` - MP4, MOV video files
-- `audio` - MP3, WAV audio files
-
-**Problem**: "Resource not accessible" error
-
-**Solutions**:
-1. Verify URL is publicly accessible or MemU has access
-2. Check URL format (must be valid HTTP/HTTPS URL or local path)
-3. For local files: ensure MemU service can access the file path
-
-**Problem**: Slow retrieval performance
-
-**Solutions**:
-1. Use `rag` method for faster results (embedding-based)
-2. Use `llm` method only when deep semantic understanding is needed
-3. Add user scope filters to narrow search space
-4. Consider indexing optimization on MemU server
-
-### Data Issues
-
-**Problem**: Empty retrieval results
-
-**Solutions**:
-1. Verify memories exist for the given user scope
-2. Check query relevance to stored content
-3. Try broader search terms or remove filters
-4. Use MemU List Items to verify stored data
-
-**Problem**: Duplicate memories
-
-**Solution**: MemU handles deduplication automatically, but you can:
-1. Use consistent user scoping
-2. Check for duplicate memorize operations in workflow
-3. Use Update Item instead of Create Item for existing content
-
-## FAQ
-
-### General Questions
-
-**Q: What's the difference between RAG and LLM retrieval methods?**
-
-A: RAG (Retrieval-Augmented Generation) uses fast embedding-based similarity search, ideal for quick lookups. LLM method uses language model reasoning for deeper semantic understanding, better for complex queries but slower.
-
-**Q: Can I use both MemU Cloud and self-hosted in the same workflow?**
-
-A: Yes, create separate credentials for each and select the appropriate one per node.
-
-**Q: How is memory scoped between users?**
-
-A: Use the User Scoping fields (user_id, agent_id) to isolate memories. Each unique combination creates a separate memory space.
-
-### Technical Questions
-
-**Q: What's the maximum document size for memorization?**
-
-A: Depends on your MemU instance configuration. Cloud service has default limits; self-hosted can be configured. Large documents are automatically chunked.
-
-**Q: How do I handle rate limiting?**
-
-A: The nodes automatically retry with exponential backoff (up to 3 attempts). For high-volume workflows, add delays between operations or use batch processing.
-
-**Q: Can I chain multiple MemU nodes together?**
-
-A: Yes, all node outputs are compatible as inputs for other MemU nodes. Use the "From Input" option to pass data between nodes.
-
-**Q: How do I debug MemU API calls?**
-
-A: Enable n8n's execution data logging. Check the node output for detailed response data including any error messages from the MemU API.
-
-### Integration Questions
-
-**Q: Can I use MemU with OpenAI/Anthropic nodes?**
-
-A: Yes! Common pattern: Retrieve → AI Chat → Memorize. Use retrieved memories as context for AI responses, then store the conversation.
-
-**Q: How do I migrate from another memory solution?**
-
-A: Use MemU Create Item node to bulk import existing memories. Format your data to match MemU's memory types (behavior, event, knowledge, profile, skill).
+### Persistent Chat Experience
+1.  **Webhook** receives a chat message.
+2.  **MemU Retrieve** fetches what the user said in previous conversations.
+3.  **AI Node** generates a personalized response using that context.
+4.  **MemU Memorize** (Modality: Conversation) stores the new interaction so it's never forgotten.
 
 ## Resources
 
+- [MemU Official Website](https://memu.so)
 - [n8n Community Nodes Documentation](https://docs.n8n.io/integrations/community-nodes/)
-- [MemU Documentation](https://memu.so/docs)
-- [MemU GitHub Repository](https://github.com/memu-ai/memu)
-- [MemU API Reference](https://memu.so/docs/api)
-- [Report Issues](https://github.com/memu-ai/n8n-nodes-memu/issues)
+- [Report Issues](https://github.com/Vishesh-Paliwal/n8n-nodes-memu/issues)
 
 ## License
 
